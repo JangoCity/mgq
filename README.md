@@ -14,7 +14,7 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 * 一写多读：举个例子，set myqueue 'one message'，只要get的时候，myqueue开头，#分隔，如myqueue#1，多个客户端之间读是彼此独立的，是不受影响的
 * 默认的get是读取队列中未读取的最旧消息
 * 支持getc操作，支持获取队列中某一个cursor位置的数据：举个例子，假设myqueue已经有1000条数据，getc myqueue 99,就可以获取队列当中cursor为99的消息
-* 支持getr操作，支持获取队列中某一个start cursor位置开始，到end的数据：举个例子，假设myqueue已经有20条数据，getr myqueue 1 10 ,就可以获取队列当中cursor为[1-10]的消息
+* 支持getr操作，支持获取队列中某一个start cursor位置开始，到end的数据：举个例子，假设myqueue已经有20条数据，getr myqueue 1 10 ,就可以获取队列当中cursor为[1-10]的消息 「内测中」
 
 未来支持的功能：
 
