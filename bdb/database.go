@@ -151,6 +151,9 @@ func InitBdbEnv(envConfig EnvConfig) {
 	}
 
 	go QstatsDumpTick()
+	go CheckMempoolTrickleTick()
+	go CheckPointTick()
+	go CheckDeadLockDetectTick()
 }
 
 type EnvConfig struct {
@@ -818,7 +821,7 @@ func (queue *Queue) NewDBInQueue(txn Transaction, queueName string, dbId uint32)
 }
 
 
-func (queue *Queue) DelQueue(key string) (err error){
+func DelCursor(key string) (err error){
 
 	var ret C.int
 	var queueName string
@@ -864,10 +867,12 @@ func (queue *Queue) DelQueue(key string) (err error){
 
 	if ok {
 		var dbKey C.DBT
-		dbKey.data = unsafe.Pointer(&key);
-		dbKey.size = C.u_int32_t(len(key))+1;
+		var keyByte = []byte(key)
+		dbKey.data = unsafe.Pointer(&keyByte[0]);
+		dbKey.size = C.u_int32_t(len(keyByte));
 		ret = C.db_del(globalQCursorListDb.ptr, txn.ptr, &dbKey, 0)
 		if ret != 0 {
+			l4g.Error("db_del err:%s,key:%s", err, key)
 			err = DbErrNo(ret)
 			return
 		}
@@ -888,6 +893,7 @@ func (queue *Queue) DelQueue(key string) (err error){
 		}
 	}
 
+	var queue *Queue
 	queue, ok = globalQlistMap[queueName];
 	if !ok {
 		ret = C.db_txn_commit(txn.ptr, 0)
@@ -916,8 +922,9 @@ func (queue *Queue) DelQueue(key string) (err error){
 	}
 
 	var dbKey C.DBT
-	dbKey.data = unsafe.Pointer(&queueName);
-	dbKey.size = C.u_int32_t(len(queueName))+1;
+	var keyByte = []byte(queueName)
+	dbKey.data = unsafe.Pointer(&keyByte[0]);
+	dbKey.size = C.u_int32_t(len(keyByte));
 	ret = C.db_del(globalQListDb.ptr, txn.ptr, &dbKey, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
@@ -1137,17 +1144,18 @@ func PrintQueueStats() (res string, err error) {
 }
 
 func CheckPointTick() {
-	var dbEnv = Env{}
 	var duration = time.Duration(globalEnvConfig.CheckpointVal) * time.Second
 	timer := time.Tick(duration)
 	for {
 		select {
 		case _ = <- timer:
-			var ret C.int = C.db_lock_detect(dbEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
+			l4g.Debug("start to CheckPointTick")
+			var ret C.int = C.db_lock_detect(globalEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
 			if ret != 0 {
 				err := DbErrNo(ret)
 				l4g.Error("CheckPointTick err:%s", err)
 			}
+			l4g.Debug("end to CheckPointTick")
 		case _ = <- globalDaemonQuitChan:
 			break;
 		}
@@ -1155,37 +1163,39 @@ func CheckPointTick() {
 }
 
 func CheckMempoolTrickleTick() {
-	var dbEnv = Env{}
 	var duration = time.Duration(globalEnvConfig.MempoolTrickleVal) * time.Second
 	timer := time.Tick(duration)
 	for {
 		select {
 		case _ = <-timer:
+			l4g.Debug("start to CheckMempoolTrickleTick")
 			var percent C.int = C.int(globalEnvConfig.MempoolTricklePercent)
 			var nwrote C.int
-			var ret C.int = C.db_memp_trickle(dbEnv.ptr, percent, &nwrote)
+			var ret C.int = C.db_memp_trickle(globalEnv.ptr, percent, &nwrote)
 			if ret != 0 {
-				err := DbErrNo(ret)
-				l4g.Error("CheckMempoolTrickleTick err:%s", err)
+				l4g.Error("mempool_trickle err:%s", DbErrNo(ret))
+			} else {
+				l4g.Info("mempool_trickle thread: writing %d dirty pages", nwrote)
 			}
 
-			l4g.Info("mempool_trickle thread: writing %d dirty pages", nwrote)
+			l4g.Debug("end to CheckMempoolTrickleTick")
 		}
 	}
 }
 
 func CheckDeadLockDetectTick() {
-	var dbEnv = Env{}
 	var duration = time.Duration(globalEnvConfig.DeadlockDetectVal) * time.Second
 	timer := time.Tick(duration)
 	for {
 		select {
 		case _ = <- timer:
-			var ret C.int = C.db_lock_detect(dbEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
+			l4g.Debug("start to CheckDeadLockDetectTick")
+			var ret C.int = C.db_lock_detect(globalEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
 			if ret != 0 {
 				err := DbErrNo(ret)
 				l4g.Error("CheckDeadlockDetect err:%s", err)
 			}
+			l4g.Debug("end to CheckDeadLockDetectTick")
 		case _ = <- globalDaemonQuitChan:
 			break;
 		}
@@ -1240,7 +1250,8 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	var queue *Queue
 	var ok bool
 	if queue, ok = globalQlistMap[queueName]; !ok {
-		l4g.Debug("not found queue name:%s", queueName)
+		l4g.Error("not found queue name:%s", queueName)
+		err = DB_ERR_NOTFOUND
 		return
 	}
 
@@ -1253,7 +1264,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	} ()
 
 	if clientId <= 0 {
-		l4g.Debug("clientId is less than o.change it to cursor.cur %d", cursor.cur)
+		//l4g.Debug("clientId is less than o.change it to cursor.cur %d", cursor.cur)
 		clientId = cursor.cur
 	}
 
@@ -1271,7 +1282,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	}
 
 	position := uint32(clientId % MAX_ITEM_PER_DBP + 1)
-	l4g.Debug("clientid=%d,position=%d", clientId, position)
+	//l4g.Debug("clientid=%d,position=%d", clientId, position)
 	dbKey.data = unsafe.Pointer(&position)
 	dbKey.size = C.u_int32_t(unsafe.Sizeof(position))
 	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
@@ -1307,12 +1318,9 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 		C.free(dbData.data)
 	}
 	*/
-	if item.Data != nil && len(item.Data) != 0 {
-		cursor.cur++
-		queue.getHits++
-	}
-
-	l4g.Debug("get suc.key %s,position:%d,queue getHits:%d,cur:%d", key, position, queue.getHits, cursor.cur)
+	cursor.cur++
+	queue.getHits++
+	//l4g.Debug("get suc.key %s,position:%d,queue getHits:%d,cur:%d", key, position, queue.getHits, cursor.cur)
 
 	return
 }
@@ -1421,7 +1429,33 @@ func DbSet(key string, item DbItem) (err error) {
 		l4g.Warn("DbSet position [%ld] is bigger than [%ld]", position, MAX_ITEM_PER_DBP)
 	}
 
-	queue.setHits = queue.setHits + 1
-	l4g.Debug("set suc.key %s, position=%d,queue setHitts=%d", key,position, queue.setHits)
+	queue.setHits++
+	//l4g.Debug("set suc.key %s, position=%d,queue setHitts=%d", key,position, queue.setHits)
+
+	return
+
+}
+
+func GetAllCursorInfo() (res string){
+	globalQCursorListMapRWLock.RLock()
+	defer func() {
+		globalQCursorListMapRWLock.RUnlock()
+	}()
+
+	for k, v := range globalCursorQlistMap {
+		max := v.max
+		globalQlistMapRWLock.RLock()
+		strs := strings.Split(k, QUEUE_NAME_DELIMITER)
+		if len(strs) > 0 {
+			if queue, ok := globalQlistMap[strs[0]]; ok {
+				max = queue.setHits
+			}
+		}
+
+		globalQlistMapRWLock.RUnlock()
+		res = res + fmt.Sprintf("STAT %s %d/%d\r\n", k, max, v.cur)
+	}
+
+	res += "END"
 	return
 }

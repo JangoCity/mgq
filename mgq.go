@@ -8,7 +8,6 @@ import (
 	"time"
 	"sync"
 	"runtime"
-	"log"
 	"os"
 	"syscall"
 	"os/signal"
@@ -16,17 +15,17 @@ import (
 )
 
 var (
-	logConfigFile = flag.String("c", "/Users/suyuhui/Work/goWork/src/github.com/iamyh/mgq/conf/log.xml", "l4g config file,default is /Users/suyuhui/Work/goWork/src/github.com/iamyh/mgq/conf/log.xml")
+	logConfigFile = flag.String("c", "../conf/log.xml", "l4g config file,default is $ROOT_PATH/conf/log.xml")
 	port = flag.Int("p", 22201, "TCP port number to listen on (default: 22201)")
 	recordSlowLogminValue = flag.Int("n", 1000, "<millisec> minimum value to record slowlog, default is 1000ms")
 	cacheSize = flag.Int("m", 64, "in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
 	pageSize = flag.Int("A", 4096, "underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
-	home = flag.String("H", "/Users/suyuhui/Work/goWork/src/github.com/iamyh/mgq/data", "env home of database, default is '/data1/memcacheq'")
+	home = flag.String("H", "../data", "env home of database, default is '$ROOT_PATH/data'")
 	logBufSize = flag.Int("L", 32, "log buffer size in kbytes, default is 32KB")
 	checkPointValue = flag.Int("C", 5 * 60, "do checkpoint every <num> seconds, 0 for disable, default is 5 minutes")
 	memTrickleValue = flag.Int("T", 30, "do memp_trickle every <num> seconds, 0 for disable, default is 30 seconds")
 	dumpStatsValue = flag.Int("S", 30, "do queue stats dump every <num> seconds, 0 for disable, default is 30 seconds")
-	percentUsageCache = flag.Int("e", 60, "percent of the pages in the cache that should be clean, default is 60%%")
+	percentUsageCache = flag.Int("e", 30, "percent of the pages in the cache that should be clean, default is 60%%")
 	pagesPerDb = flag.Int("E", 16 * 1024, "how many pages in a single db file, default is 16*1024, 0 for disable")
 	msgLen = flag.Int("B", 1024, "specify the message body length in bytes, default is 1024")
 	deadLockCheckValue = flag.Int("D", 100, "specify the message body length in bytes, default is 1024")
@@ -137,24 +136,24 @@ func main() {
 	initStats()
 	config := service.TcpConfig{
 		Port: globalSettings.Port       ,
-		SendLimit:    88,
-		ReceiveLimit: 88,
+		SendLimit:    65535,
+		ReceiveLimit: 65535,
 	}
 
 	srv := service.NewService(config, &service.MgqProtocolImpl{}, &service.ConnCallBack{})
 	var err error
-	if os.Getenv("YMTCP_RESTART") == "true" {
+	if os.Getenv("RESTART") == "true" {
 		err = srv.InitFromFD(3)
 	} else {
 		err = srv.Init()
 	}
 
 	if err != nil {
-		log.Fatalf("tcp service init err:%s", err)
+		l4g.Error("tcp service init err:%s", err)
 	}
 
 	go srv.Service()
-	log.Println("listen:", config.Port)
+	l4g.Info("listen:%d", config.Port)
 
 	chanSignal := make(chan os.Signal)
 	signal.Notify(chanSignal, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
@@ -162,21 +161,21 @@ func main() {
 	for receiveSignal := range chanSignal {
 		if receiveSignal == syscall.SIGTERM {
 
-			log.Println("receive signal SIGTERM,stop service.pid:", os.Getpid())
+			l4g.Warn("receive signal SIGTERM,stop service.pid:%d", os.Getpid())
 			srv.StopAccept()
 			srv.WaitAndDone()
 			os.Exit(0)
 		} else {
-			log.Println("receive signal SIGHUP")
+			l4g.Warn("receive signal SIGHUP")
 
 			//停止接受新连接
 			srv.StopAccept()
 			fd, err := srv.GetListenerFD()
 			if err != nil {
-				log.Fatalf("get tcp service fd err:%s", err)
+				l4g.Error("get tcp service fd err:%s", err)
 			}
 
-			os.Setenv("YMTCP_RESTART", "true")
+			os.Setenv("RESTART", "true")
 
 			execSpec := &syscall.ProcAttr{
 				Env: os.Environ(),
@@ -185,10 +184,10 @@ func main() {
 
 			fork, err := syscall.ForkExec(os.Args[0], os.Args, execSpec)
 			if err != nil {
-				log.Fatalln("Fail to fork", err)
+				l4g.Error("Fail to fork, err:%s", err)
 			}
 
-			log.Printf("pid:%d restart graceful,new pid:%d start", os.Getpid(), fork)
+			l4g.Info("pid:%d restart,new pid:%d start", os.Getpid(), fork)
 			srv.WaitAndDone()
 			os.Exit(0)
 		}

@@ -6,8 +6,6 @@ import (
 	"runtime"
 	"sync"
 	"errors"
-	"strings"
-	"github.com/iamyh/mgq/bdb"
 	l4g "code.google.com/p/log4go"
 )
 
@@ -27,89 +25,19 @@ type ConnCallBack struct{
 
 func (cb *ConnCallBack) ConnectCome(c *Conn) bool {
 	addr := c.GetConnRemoteAddr()
-	fmt.Println("connection come:", addr.String())
+	l4g.Debug("connection come:", addr.String())
 	return true
 }
 
 func (cb *ConnCallBack) MessageCome(c *Conn, bytes []byte) (err error) {
-	fmt.Println("MessageCome:" + string(bytes))
+	//l4g.Debug("MessageCome:" + string(bytes))
 	if bytes == nil || len(bytes) == 0 {
 		err = errors.New("error package")
 		return
 	}
 
-	var tokens []string
-	tokens, err = cb.Tokenize(bytes)
-	if err != nil {
-		return
-	}
-
-	var rsp []byte
-	rsp, err = cb.ReadCommand(tokens)
-	if err != nil {
-		l4g.Error("ReadCommand err:%s", err)
-		rsp = make([]byte, 0)
-	}
-
-	var buff []byte
-	buff, err = MakePacket(rsp)
-	c.WriteBytesToChan(buff)
-	return
-}
-
-func (cb *ConnCallBack) Tokenize(buff []byte) (tokens []string, err error){
-	if buff == nil || len(buff) == 0 {
-		err = errors.New("not found command to tokenize")
-		return
-	}
-
-	tokens = make([]string, 0)
-
-	var value = strings.TrimSpace(string(buff))
-	var newBuff = []byte(value)
-	var start = 0
-	for k, c := range newBuff {
-		if string(c) == " " {
-			tokens = append(tokens, string(newBuff[start:k]))
-			start = k + 1
-		}
-
-	}
-	tokens = append(tokens, string(newBuff[start:]))
-	return
-}
-
-func (cb *ConnCallBack) ReadCommand(tokens []string) (rsp []byte, err error){
-	if tokens == nil || len(tokens) <= 0 {
-		err = errors.New("not found command to read")
-		return
-	}
-
-	if len(tokens) >= 2 && strings.ToLower(tokens[0]) == "get" {
-		var item bdb.DbItem
-		item, err = bdb.DbGet(tokens[1], 0)
-		if err != nil {
-			return
-		}
-
-		rsp = item.Data
-		return
-	} else if len(tokens) >= 3 && strings.ToLower(tokens[0]) == "set" {
-		queueName := tokens[1]
-		item := bdb.DbItem{
-			Data:[]byte(tokens[2]),
-		}
-
-		err = bdb.DbSet(queueName, item)
-		if err != nil {
-			rsp = []byte(err.Error())
-			return
-		}
-
-		rsp = []byte("ok")
-		return
-	}
-
+	//simple return to chan
+	c.WriteBytesToChan(bytes)
 	return
 }
 
@@ -264,7 +192,7 @@ func (c *Conn) WriteInLoop() {
 			return
 		case bytes := <-c.sendChan:
 			if _, err := c.conn.Write(bytes); err != nil {
-				l4g.Error("err:%s", err)
+				l4g.Error("Write err:%s, bytes:%s", err, string(bytes))
 				return
 			}
 		}
@@ -315,7 +243,7 @@ func (c *Conn) CallBackInLoop() {
 			return
 		case bytes := <-c.receiveChan:
 			if err = c.srv.callback.MessageCome(c, bytes); err != nil {
-				l4g.Error("err:%s", err)
+				return
 			}
 		}
 	}
