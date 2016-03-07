@@ -24,8 +24,10 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 ***
 
 * 首先要安装BerkeleyDB，以版本6.1.26为例，下载[db-6.1.26.tar.gz](http://www.oracle.com/technetwork/cn/database/database-technologies/berkeleydb/downloads/index.html),执行tar -zxvf db-6.1.26.tar.gz;cd db-6.1.26;dist/configure;make && make install
-* git clone http://github.com/iamyh/mgq;cd mgq;make
+* git clone https://github.com/YoungPioneers/mgq ;cd mgq;make
 * cd bin;./mgq 默认端口为22201，可通过./mgq -h查看更多帮助
+
+
 ^_^
 
 # Usage
@@ -59,4 +61,4 @@ VALUE q 0 10
 helloworld
 END
 ```
-more example in [examples](http://github.com/iamyh/mgq/examples)
+more example in [examples](https://github.com/YoungPioneers/mgq/examples)
