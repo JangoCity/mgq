@@ -61,4 +61,20 @@ VALUE q 0 10
 helloworld
 END
 ```
+
+delete 队列
+
+```
+delete queue
+DELETED
+```
+
+查看queue统计
+
+```
+stats
+STAT queue 1/1
+STAT myqueue 0/0
+END
+```
 more example in [examples](https://github.com/YoungPioneers/mgq/examples)

@@ -40,35 +40,35 @@ func (mp *MgqProtocolImpl) ReadBytes(conn *net.TCPConn) (rsp []byte, err error) 
 	scanner := bufio.NewScanner(conn)
 	if scanner.Scan() {
 		line := scanner.Text()
-		var tokens []string
-		tokens, err = Tokenize([]byte(line))
-		if err != nil {
+		tokens, tErr := Tokenize([]byte(line))
+		if tErr != nil {
 			l4g.Debug("Tokenize err:%s", err)
-			return
-		}
-
-		if tokens == nil || len(tokens) <= 0 {
-			l4g.Error("not found command to read")
-		} else if len(tokens) >= 2 && strings.ToLower(tokens[0]) == "set" {
-			if scanner.Scan() {
-				value := scanner.Text()
-				rsp, err = mp.processSet(tokens[1], value)
-			}
-
-		} else if len(tokens) >= 2 && (strings.ToLower(tokens[0]) == "get" || strings.ToLower(tokens[0]) == "gets") {
-			rsp, err = mp.processGetC(tokens[1], 0)
-		} else if len(tokens) >= 1 && strings.ToLower(tokens[0]) == "stats" {
-			rsp = []byte(mp.processStats())
-		} else if len(tokens) >= 1 && strings.ToLower(tokens[0]) == "quit" {
-			rsp, err = mp.processQuit()
-		} else if len(tokens) >= 1 && strings.ToLower(tokens[0]) == "delete" {
-			rsp, err = mp.processDelete(tokens[1])
 		} else {
-			rsp = []byte("ERROR\r\n")
+			if tokens == nil || len(tokens) <= 0 {
+				l4g.Error("not found command to read")
+			} else {
+				lenTokens := len(tokens)
+				if lenTokens >= 2 && strings.ToLower(tokens[0]) == "set" {
+					if scanner.Scan() {
+						value := scanner.Text()
+						rsp, err = mp.processSet(tokens[1], value)
+					}
+				} else if lenTokens >= 2 && (strings.ToLower(tokens[0]) == "get" || strings.ToLower(tokens[0]) == "gets") {
+					rsp, err = mp.processGetC(tokens[1], 0)
+				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "stats" {
+					rsp = []byte(mp.processStats())
+				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "quit" {
+					rsp, err = mp.processQuit()
+				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "delete" {
+					rsp, err = mp.processDelete(tokens[1])
+				}
+			}
 		}
-
 	}
 
+	if rsp == nil || len(rsp) == 0 {
+		rsp = []byte("ERROR\r\n")
+	}
 	return
 }
 
