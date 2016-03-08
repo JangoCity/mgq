@@ -17,24 +17,23 @@ import (
 var (
 	logConfigFile = flag.String("c", "../conf/log.xml", "l4g config file,default is $ROOT_PATH/conf/log.xml")
 	port = flag.Int("p", 22201, "TCP port number to listen on (default: 22201)")
-	recordSlowLogminValue = flag.Int("n", 1000, "<millisec> minimum value to record slowlog, default is 1000ms")
+	recordSlowLogminValue = flag.Int("n", 1, "<millisec> minimum value to record slowlog, default is 1s")
 	cacheSize = flag.Int("m", 64, "in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
 	pageSize = flag.Int("A", 4096, "underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
 	home = flag.String("H", "../data", "env home of database, default is '$ROOT_PATH/data'")
 	logBufSize = flag.Int("L", 32, "log buffer size in kbytes, default is 32KB")
-	checkPointValue = flag.Int("C", 5 * 60, "do checkpoint every <num> seconds, 0 for disable, default is 5 minutes")
-	memTrickleValue = flag.Int("T", 30, "do memp_trickle every <num> seconds, 0 for disable, default is 30 seconds")
-	dumpStatsValue = flag.Int("S", 30, "do queue stats dump every <num> seconds, 0 for disable, default is 30 seconds")
+	checkPointValue = flag.Int("C", 30, "do checkpoint every <num> seconds, default is 30")
+	memTrickleValue = flag.Int("T", 30, "do memp_trickle every <num> seconds, default is 30 seconds")
+	dumpStatsValue = flag.Int("S", 30, "do queue stats dump every <num> seconds, default is 30 seconds")
 	percentUsageCache = flag.Int("e", 30, "percent of the pages in the cache that should be clean, default is 60%%")
-	pagesPerDb = flag.Int("E", 16 * 1024, "how many pages in a single db file, default is 16*1024, 0 for disable")
+	pagesPerDb = flag.Int("E", 16 * 1024, "how many pages in a single db file, default is 16*1024")
 	msgLen = flag.Int("B", 1024, "specify the message body length in bytes, default is 1024")
-	deadLockCheckValue = flag.Int("D", 100, "specify the message body length in bytes, default is 1024")
-	dbTxnNoSync = flag.Bool("N", false, "enable DB_TXN_NOSYNC to gain big performance improved, default is off")
-	autoRemoveLog = flag.Bool("R", false, "automatically remove log files that are no longer needed, default is off")
+	deadLockCheckValue = flag.Int("D", 1, "do deadlock detecting every <num> millisecond, default is 1s")
+	dbTxnNoSync = flag.Bool("N", false, "enable DB_TXN_NOSYNC to gain big performance improved, default is false")
+	autoRemoveLog = flag.Bool("R", false, "automatically remove log files that are no longer needed, default is false")
 	maxLocks = flag.Int("l", 40000, "max locker for bdb env, default is 40000")
 	globalSettings = Settings{}
 	globalStats = Stats{}
-	globalStatsLock = sync.Mutex{}
 )
 
 type Settings struct {
@@ -63,16 +62,6 @@ func initStats() {
 	globalStats.Started = time.Now()
 }
 
-func resetStats() {
-	globalStatsLock.Lock()
-	globalStats.TotalConns = 0
-	globalStats.GetCmds = 0
-	globalStats.SetCmds = 0
-	globalStats.BytesRead = 0
-	globalStats.BytesWritten = 0
-	globalStatsLock.Unlock()
-}
-
 func initConfig() {
 	flag.Parse()
 	l4g.LoadConfiguration(*logConfigFile)
@@ -98,39 +87,38 @@ func initConfig() {
 }
 
 func usage() {
-	fmt.Println("-p <num>      TCP port number to listen on (default: 22201)")
-	fmt.Println("-U <num>      UDP port number to listen on (default: 0, off)")
-	fmt.Println("-s <file>     unix socket path to listen on (disables network support)")
-	fmt.Println("-a <mask>     access mask for unix socket, in octal (default 0700)")
-	fmt.Println("-l <ip_addr>  interface to listen on, default is INDRR_ANY")
-	fmt.Println("-u <username> assume identity of <username> (only when run as root)")
-	fmt.Println("-c <num>      max simultaneous connections, default is 1024")
-	fmt.Println("-v            verbose (print errors/warnings while in event loop)")
-	fmt.Println("-vv           very verbose (also print client commands/reponses)")
+	fmt.Println("-p=<num>      TCP port number to listen on (default: 22201)")
 	fmt.Println("-h            print this help and exit")
-	fmt.Println("-i            print license info")
-	fmt.Println("-M <num>      number of max dbp file per queue, default 10 (10*1024*1024 items per queue)");
-	fmt.Println("-n <millisec> minimum value to record slowlog, default is 1000ms");
+	fmt.Println("-n <millisec> minimum value to record slowlog, default is 1s");
 
 	fmt.Println("--------------------BerkeleyDB Options-------------------------------\n");
-	fmt.Println("-m <num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB");
-	fmt.Println("-A <num>      underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)");
-	fmt.Println("-H <dir>      env home of database, default is '/data1/memcacheq'");
-	fmt.Println("-L <num>      log buffer size in kbytes, default is 32KB");
-	fmt.Println("-C <num>      do checkpoint every <num> seconds, 0 for disable, default is 5 minutes");
-	fmt.Println("-T <num>      do memp_trickle every <num> seconds, 0 for disable, default is 30 seconds");
-	fmt.Println("-S <num>      do queue stats dump every <num> seconds, 0 for disable, default is 30 seconds");
-	fmt.Println("-e <num>      percent of the pages in the cache that should be clean, default is 60%%");
+	fmt.Println("-m=<num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB");
+	fmt.Println("-l=<num>      max locker for bdb env, default is 40000");
+	fmt.Println("-A=<num>      underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)");
+	fmt.Println("-H=<dir>      env home of database, default is '$ROOT_PATH/data'");
+	fmt.Println("-L=<num>      log buffer size in kbytes, default is 32KB");
+	fmt.Println("-C=<num>      do checkpoint every <num> seconds, default is 30 seconds");
+	fmt.Println("-T=<num>      do memp_trickle every <num> seconds, default is 30 seconds");
+	fmt.Println("-S=<num>      do queue stats dump every <num> seconds, default is 30 seconds");
+	fmt.Println("-e=<num>      percent of the pages in the cache that should be clean, default is 60%%");
 	/* queue only */
-	fmt.Println("-E <num>      how many pages in a single db file, default is 16*1024, 0 for disable");
-	fmt.Println("-B <num>      specify the message body length in bytes, default is 1024");
+	fmt.Println("-E=<num>      how many pages in a single db file, default is 16*1024, 0 for disable");
+	fmt.Println("-B=<num>      specify the message body length in bytes, default is 1024");
 
-	fmt.Println("-D <num>      do deadlock detecting every <num> millisecond, 0 for disable, default is 100ms");
-	fmt.Println("-N            enable DB_TXN_NOSYNC to gain big performance improved, default is off");
-	fmt.Println("-R            automatically remove log files that are no longer needed, default is off");
+	fmt.Println("-D=<num>      do deadlock detecting every <num> millisecond,default is 1");
+	fmt.Println("-N=<num>      enable DB_TXN_NOSYNC to gain big performance improved, default is 0");
+	fmt.Println("-R=<num>      automatically remove log files that are no longer needed, default is 0");
 }
 
 func main() {
+	if len(os.Args) != 0 {
+		for _, arg := range os.Args {
+			if arg == "-h" {
+				usage()
+				return
+			}
+		}
+	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	initConfig()
 	initStats()
