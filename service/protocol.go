@@ -9,7 +9,21 @@ import (
 	"strings"
 	"github.com/iamyh/mgq/bdb"
 	"fmt"
+	"strconv"
+	"sync"
+	"time"
 )
+
+var (
+	blockedQueueMap = make(map[string]*Notify)
+    blockedQueueMapRWLock = sync.RWMutex{}
+)
+
+type Notify struct {
+	c chan bool
+	count int
+	locker sync.Mutex
+}
 
 type MgqProtocolImpl struct {
 }
@@ -48,18 +62,38 @@ func (mp *MgqProtocolImpl) ReadBytes(conn *net.TCPConn) (rsp []byte, err error) 
 				l4g.Error("not found command to read")
 			} else {
 				lenTokens := len(tokens)
-				if lenTokens >= 2 && strings.ToLower(tokens[0]) == "set" {
+				cmd := strings.ToLower(tokens[0])
+				if lenTokens >= 2 && cmd == "set" || cmd == "setn"{
 					if scanner.Scan() {
 						value := scanner.Text()
-						rsp, err = mp.processSet(tokens[1], value)
+						if cmd == "set" {
+							rsp, err = mp.processSet(tokens[1], value)
+						} else if cmd == "setn" {
+							rsp, err = mp.processSetN(tokens[1], value)
+						}
 					}
-				} else if lenTokens >= 2 && (strings.ToLower(tokens[0]) == "get" || strings.ToLower(tokens[0]) == "gets") {
-					rsp, err = mp.processGetC(tokens[1], 0)
-				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "stats" {
+				} else if lenTokens >= 2 && (cmd == "get" || cmd == "gets" || cmd == "getc" || cmd == "getn") {
+
+					if cmd == "getn" {
+						timeout := 0
+						if lenTokens == 3 {
+							timeout, _ = strconv.Atoi(tokens[2])
+						}
+
+						rsp, err = mp.processGetN(tokens[1], time.Duration(timeout))
+					} else {
+						cursor := 0
+						if lenTokens == 3 {
+							cursor, _ = strconv.Atoi(tokens[2])
+						}
+						rsp, err = mp.processGetC(tokens[1], uint32(cursor))
+					}
+
+				} else if lenTokens >= 1 && cmd == "stats" {
 					rsp = []byte(mp.processStats())
-				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "quit" {
+				} else if lenTokens >= 1 && cmd == "quit" {
 					rsp, err = mp.processQuit()
-				} else if lenTokens >= 1 && strings.ToLower(tokens[0]) == "delete" {
+				} else if lenTokens >= 1 && cmd == "delete" {
 					rsp, err = mp.processDelete(tokens[1])
 				}
 			}
@@ -96,6 +130,70 @@ func (mp *MgqProtocolImpl) processGetC(key string, position uint32) (rsp []byte,
 	return
 }
 
+func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp []byte, err error){
+
+	item, err := bdb.DbGet(key, 0)
+	var suffixBytes []byte
+	if err != nil {
+		if err.Error() != bdb.DB_ERR_NOTFOUND.Error() {
+			l4g.Error("DbGet err:%s", err)
+			return
+		}
+		err = nil
+		suffixBytes = []byte("END")
+		queueName := strings.Split(key, bdb.QUEUE_NAME_DELIMITER)[0]
+		blockedQueueMapRWLock.RLock()
+		var notify *Notify
+		var ok bool
+		if notify, ok = blockedQueueMap[queueName]; !ok {
+			blockedQueueMapRWLock.RUnlock()
+			blockedQueueMapRWLock.Lock()
+			notify = &Notify{
+				count:0,
+				c:make(chan bool),
+			}
+			blockedQueueMap[queueName] = notify
+			blockedQueueMapRWLock.Unlock()
+		} else {
+			blockedQueueMapRWLock.RUnlock()
+		}
+
+		notify.locker.Lock()
+		notify.count++
+		notify.locker.Unlock()
+
+		if timeout == 0 {
+			<- notify.c
+		} else {
+			timeTicker := time.Tick(timeout * time.Second)
+			select {
+			case <-timeTicker:
+				//timeout
+			l4g.Debug("timeout for break block")
+				return
+			case <- notify.c:
+
+			}
+		}
+
+		notify.locker.Lock()
+		notify.count--
+		notify.locker.Unlock()
+
+		rsp, err = mp.processGetC(key, 0)
+	} else {
+		res := item.Data
+		queueName := strings.Split(key, bdb.QUEUE_NAME_DELIMITER)[0]
+		rsp = []byte(fmt.Sprintf("VALUE %s %d %d\r\n", queueName, 0, len(res)))
+		rsp = append(rsp, res...)
+		suffixBytes = []byte("\r\nEND")
+		rsp = append(rsp, suffixBytes...)
+		rsp = append(rsp, "\r\n"...)
+	}
+
+	return
+}
+
 func (mp *MgqProtocolImpl) processSet(key, value string) (rsp []byte, err error){
 
 	item := bdb.DbItem{
@@ -107,6 +205,45 @@ func (mp *MgqProtocolImpl) processSet(key, value string) (rsp []byte, err error)
 		rsp = []byte(err.Error())
 		return
 	}
+
+	rsp = []byte("STORED\r\n")
+	return
+}
+
+func (mp *MgqProtocolImpl) processSetN(key, value string) (rsp []byte, err error){
+
+	item := bdb.DbItem{
+		Data:[]byte(value),
+	}
+
+	err = bdb.DbSet(key, item)
+	if err != nil {
+		rsp = []byte(err.Error())
+		return
+	}
+
+	queueName := strings.Split(key, bdb.QUEUE_NAME_DELIMITER)[0]
+	blockedQueueMapRWLock.RLock()
+	var notify *Notify
+	var ok bool
+	if notify, ok = blockedQueueMap[queueName]; !ok {
+		blockedQueueMapRWLock.RUnlock()
+		blockedQueueMapRWLock.Lock()
+		notify = &Notify{
+			count:0,
+			c:make(chan bool),
+		}
+		blockedQueueMap[queueName] = notify
+		blockedQueueMapRWLock.Unlock()
+	} else {
+		blockedQueueMapRWLock.RUnlock()
+	}
+
+	notify.locker.Lock()
+	for i := 0; i < notify.count; i++ {
+		notify.c <- true
+	}
+	notify.locker.Unlock()
 
 	rsp = []byte("STORED\r\n")
 	return

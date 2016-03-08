@@ -16,10 +16,7 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 * 支持getc操作，支持获取队列中某一个cursor位置的数据：举个例子，假设myqueue已经有1000条数据，getc myqueue 99,就可以获取队列当中cursor为99的消息
 * 支持getr操作，支持获取队列中某一个start cursor位置开始，到end的数据：举个例子，假设myqueue已经有20条数据，getr myqueue 1 10 ,就可以获取队列当中cursor为[1-10]的消息 「内测中」
 
-未来支持的功能：
-
-* get的时候支持timeout机制的阻塞api，当队列中有消息的时候，会立即返回，目前都是非阻塞的get操作
-
+* getn支持timeout机制的阻塞api来获取队列中的最新消息，举个例子：getn queue 10,意味着10s内有数据则立马返回，否则会10s后立马返回数据不存在的错误，默认getn的timeout是0s，永不超时（需要注意的是如果客户端有getn的操作，则set的另一个客户端需要调用setn）
 # Installation
 
 
@@ -34,18 +31,20 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 
 查看队列的统计情况
 
+stats命令
+
 ```
 telnet localhost 22201
 Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
-stats queue
+stats
 STAT q 0/0
 STAT queue 122389/80000
 END
 ```
 
-set 消息
+set 队列名（q为队列名，按下\r\n后输入的'helloworld'为消息内容）
 
 ```
 set q
@@ -53,7 +52,7 @@ helloworld
 STORED
 ```
 
-get 消息
+get 队列名
 
 ```
 get q
@@ -62,19 +61,39 @@ helloworld
 END
 ```
 
-delete 队列
+setn 队列名 
+
+```
+setn q
+helloworld
+STORED
+```
+
+getn 队列名 timeout_second
+
+```
+getn q 5
+VALUE q 0 10
+helloworld
+END
+```
+
+getc 队列名 cursor
+
+```
+getc q 9
+VALUE q 0 11
+helloworld9
+END
+```
+
+delete 队列名
 
 ```
 delete queue
 DELETED
 ```
 
-查看queue统计
 
-```
-stats
-STAT queue 1/1
-STAT myqueue 0/0
-END
-```
+
 more example in [examples](https://github.com/YoungPioneers/mgq/examples)
