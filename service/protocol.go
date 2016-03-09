@@ -1,27 +1,27 @@
 package service
 
 import (
+	"bufio"
+	l4g "code.google.com/p/log4go"
+	"errors"
+	"fmt"
+	"github.com/iamyh/mgq/bdb"
 	"net"
 	"runtime"
-	l4g "code.google.com/p/log4go"
-	"bufio"
-	"errors"
-	"strings"
-	"github.com/iamyh/mgq/bdb"
-	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	blockedQueueMap = make(map[string]*Notify)
-    blockedQueueMapRWLock = sync.RWMutex{}
+	blockedQueueMap       = make(map[string]*Notify)
+	blockedQueueMapRWLock = sync.RWMutex{}
 )
 
 type Notify struct {
-	c chan bool
-	count int
+	c      chan bool
+	count  int
 	locker sync.Mutex
 }
 
@@ -63,7 +63,7 @@ func (mp *MgqProtocolImpl) ReadBytes(conn *net.TCPConn) (rsp []byte, err error) 
 			} else {
 				lenTokens := len(tokens)
 				cmd := strings.ToLower(tokens[0])
-				if lenTokens >= 2 && cmd == "set" || cmd == "setn"{
+				if lenTokens >= 2 && cmd == "set" || cmd == "setn" {
 					if scanner.Scan() {
 						value := scanner.Text()
 						if cmd == "set" {
@@ -106,7 +106,7 @@ func (mp *MgqProtocolImpl) ReadBytes(conn *net.TCPConn) (rsp []byte, err error) 
 	return
 }
 
-func (mp *MgqProtocolImpl) processGetC(key string, position uint32) (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processGetC(key string, position uint32) (rsp []byte, err error) {
 
 	item, err := bdb.DbGet(key, position)
 	var suffixBytes []byte
@@ -130,7 +130,7 @@ func (mp *MgqProtocolImpl) processGetC(key string, position uint32) (rsp []byte,
 	return
 }
 
-func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp []byte, err error) {
 
 	item, err := bdb.DbGet(key, 0)
 	var suffixBytes []byte
@@ -149,8 +149,8 @@ func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp [
 			blockedQueueMapRWLock.RUnlock()
 			blockedQueueMapRWLock.Lock()
 			notify = &Notify{
-				count:0,
-				c:make(chan bool),
+				count: 0,
+				c:     make(chan bool),
 			}
 			blockedQueueMap[queueName] = notify
 			blockedQueueMapRWLock.Unlock()
@@ -163,15 +163,15 @@ func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp [
 		notify.locker.Unlock()
 
 		if timeout == 0 {
-			<- notify.c
+			<-notify.c
 		} else {
 			timeTicker := time.Tick(timeout * time.Second)
 			select {
 			case <-timeTicker:
 				//timeout
-			l4g.Debug("timeout for break block")
+				l4g.Debug("timeout for break block")
 				return
-			case <- notify.c:
+			case <-notify.c:
 
 			}
 		}
@@ -194,10 +194,10 @@ func (mp *MgqProtocolImpl) processGetN(key string, timeout time.Duration) (rsp [
 	return
 }
 
-func (mp *MgqProtocolImpl) processSet(key, value string) (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processSet(key, value string) (rsp []byte, err error) {
 
 	item := bdb.DbItem{
-		Data:[]byte(value),
+		Data: []byte(value),
 	}
 
 	err = bdb.DbSet(key, item)
@@ -210,10 +210,10 @@ func (mp *MgqProtocolImpl) processSet(key, value string) (rsp []byte, err error)
 	return
 }
 
-func (mp *MgqProtocolImpl) processSetN(key, value string) (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processSetN(key, value string) (rsp []byte, err error) {
 
 	item := bdb.DbItem{
-		Data:[]byte(value),
+		Data: []byte(value),
 	}
 
 	err = bdb.DbSet(key, item)
@@ -230,8 +230,8 @@ func (mp *MgqProtocolImpl) processSetN(key, value string) (rsp []byte, err error
 		blockedQueueMapRWLock.RUnlock()
 		blockedQueueMapRWLock.Lock()
 		notify = &Notify{
-			count:0,
-			c:make(chan bool),
+			count: 0,
+			c:     make(chan bool),
 		}
 		blockedQueueMap[queueName] = notify
 		blockedQueueMapRWLock.Unlock()
@@ -249,13 +249,13 @@ func (mp *MgqProtocolImpl) processSetN(key, value string) (rsp []byte, err error
 	return
 }
 
-func (mp *MgqProtocolImpl) processStats() (rsp []byte){
+func (mp *MgqProtocolImpl) processStats() (rsp []byte) {
 
 	rsp = []byte(bdb.GetAllCursorInfo() + "\r\n")
 	return
 }
 
-func (mp *MgqProtocolImpl) processDelete(key string) (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processDelete(key string) (rsp []byte, err error) {
 
 	err = bdb.DelCursor(key)
 	if err == nil {
@@ -267,12 +267,12 @@ func (mp *MgqProtocolImpl) processDelete(key string) (rsp []byte, err error){
 	return
 }
 
-func (mp *MgqProtocolImpl) processQuit() (rsp []byte, err error){
+func (mp *MgqProtocolImpl) processQuit() (rsp []byte, err error) {
 	err = errors.New("quit")
 	return
 }
 
-func Tokenize(buff []byte) (tokens []string, err error){
+func Tokenize(buff []byte) (tokens []string, err error) {
 	if buff == nil || len(buff) == 0 {
 		err = errors.New("not found command to tokenize")
 		return

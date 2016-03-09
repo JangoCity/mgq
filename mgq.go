@@ -6,7 +6,6 @@ import (
 	"github.com/iamyh/mgq/bdb"
 	"github.com/iamyh/mgq/service"
 	"time"
-	"sync"
 	"runtime"
 	"os"
 	"syscall"
