@@ -88,7 +88,7 @@ func initConfig() {
 func usage() {
 	fmt.Println("-p=<num>      TCP port number to listen on (default: 22201)")
 	fmt.Println("-h            print this help and exit")
-	fmt.Println("-n <millisec> minimum value to record slowlog, default is 1s");
+	fmt.Println("-n=<millisec> minimum value to record slowlog, default is 1s");
 
 	fmt.Println("--------------------BerkeleyDB Options-------------------------------\n");
 	fmt.Println("-m=<num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB");

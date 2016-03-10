@@ -1442,9 +1442,9 @@ func GetAllCursorInfo() (res string){
 		globalQCursorListMapRWLock.RUnlock()
 	}()
 
+	globalQlistMapRWLock.RLock()
 	for k, v := range globalCursorQlistMap {
 		max := v.max
-		globalQlistMapRWLock.RLock()
 		strs := strings.Split(k, QUEUE_NAME_DELIMITER)
 		if len(strs) > 0 {
 			if queue, ok := globalQlistMap[strs[0]]; ok {
@@ -1452,10 +1452,10 @@ func GetAllCursorInfo() (res string){
 			}
 		}
 
-		globalQlistMapRWLock.RUnlock()
 		res = res + fmt.Sprintf("STAT %s %d/%d\r\n", k, max, v.cur)
 	}
 
+	globalQlistMapRWLock.RUnlock()
 	res += "END"
 	return
 }
