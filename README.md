@@ -25,7 +25,6 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 * cd bin;./mgq 默认端口为22201，可通过./mgq -h查看更多帮助
 
 
-^_^
 
 # Usage
 
@@ -96,4 +95,13 @@ DELETED
 
 
 
-more example in [examples](https://github.com/YoungPioneers/mgq/examples)
+client example in [examples](https://github.com/YoungPioneers/mgq/examples)
+
+# ToDo
+[todo](https://github.com/YoungPioneers/mgq/todo)
+
+# ChangeLog
+[ChangeLog](https://github.com/YoungPioneers/mgq/ChangeLog)
+
+# Usage
+under the MIT License

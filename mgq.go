@@ -1,3 +1,5 @@
+//Author: tab@iyouya.com
+
 package main
 
 import (
