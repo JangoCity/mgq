@@ -1,8 +1,6 @@
 # Introduction
 
-Memcached Go Queue, 简称mgq, 是一个用[Go](https://golang.org)语言写的，基于memcached协议的消息队列。其父亲[mcq](https://github.com/stvchu/memcacheq.git)是最早应用于[weibo](http://weibo.com)的基础消息中间件，有着高性能，解耦的优点，使得其广泛应用于微博
-
-
+Memcached Go Queue, 简称mgq, 是一个用[Go](https://golang.org)语言写的tcp server，基于memcached协议的消息队列。[memcacheq](https://github.com/stvchu/memcacheq.git)是最早应用于[weibo](http://weibo.com)的基础消息中间件，有着高性能，解耦的优点，使得其广泛应用于微博,借鉴其中的思想，在原来的基础上增加了若干特性
 
 
 
@@ -98,10 +96,14 @@ DELETED
 client example in [examples](https://github.com/YoungPioneers/mgq/examples)
 
 # ToDo
-[todo](https://github.com/YoungPioneers/mgq/todo)
+* add beachmark for set and get
+* add Coveralls to mgq
+* add popular language client for commands which are getr,getc,getn
 
 # ChangeLog
 [ChangeLog](https://github.com/YoungPioneers/mgq/ChangeLog)
 
+# Thanks
+[stvchu](https://github.com/stvchu)
 # Usage
 under the MIT License
