@@ -2,10 +2,10 @@ package service
 
 import (
 	"bufio"
-	l4g "code.google.com/p/log4go"
 	"errors"
 	"fmt"
-	"github.com/iamyh/mgq/bdb"
+	"github.com/YoungPioneers/mgq/bdb"
+	l4g "github.com/alecthomas/log4go"
 	"net"
 	"runtime"
 	"strconv"

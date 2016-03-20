@@ -5,57 +5,57 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/iamyh/mgq/bdb"
-	"github.com/iamyh/mgq/service"
-	"time"
-	"runtime"
+	"github.com/YoungPioneers/mgq/bdb"
+	"github.com/YoungPioneers/mgq/service"
+	l4g "github.com/alecthomas/log4go"
 	"os"
-	"syscall"
 	"os/signal"
-	l4g "code.google.com/p/log4go"
+	"runtime"
+	"syscall"
+	"time"
 )
 
 var (
-	logConfigFile = flag.String("c", "../conf/log.xml", "l4g config file,default is $ROOT_PATH/conf/log.xml")
-	port = flag.Int("p", 22201, "TCP port number to listen on (default: 22201)")
+	logConfigFile         = flag.String("c", "../conf/log.xml", "l4g config file,default is $ROOT_PATH/conf/log.xml")
+	port                  = flag.Int("p", 22201, "TCP port number to listen on (default: 22201)")
 	recordSlowLogminValue = flag.Int("n", 1, "<millisec> minimum value to record slowlog, default is 1s")
-	cacheSize = flag.Int("m", 64, "in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
-	pageSize = flag.Int("A", 4096, "underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
-	home = flag.String("H", "../data", "env home of database, default is '$ROOT_PATH/data'")
-	logBufSize = flag.Int("L", 32, "log buffer size in kbytes, default is 32KB")
-	checkPointValue = flag.Int("C", 30, "do checkpoint every <num> seconds, default is 30")
-	memTrickleValue = flag.Int("T", 30, "do memp_trickle every <num> seconds, default is 30 seconds")
-	dumpStatsValue = flag.Int("S", 30, "do queue stats dump every <num> seconds, default is 30 seconds")
-	percentUsageCache = flag.Int("e", 30, "percent of the pages in the cache that should be clean, default is 60%%")
-	pagesPerDb = flag.Int("E", 16 * 1024, "how many pages in a single db file, default is 16*1024")
-	msgLen = flag.Int("B", 1024, "specify the message body length in bytes, default is 1024")
-	deadLockCheckValue = flag.Int("D", 1, "do deadlock detecting every <num> millisecond, default is 1s")
-	dbTxnNoSync = flag.Bool("N", false, "enable DB_TXN_NOSYNC to gain big performance improved, default is false")
-	autoRemoveLog = flag.Bool("R", false, "automatically remove log files that are no longer needed, default is false")
-	maxLocks = flag.Int("l", 40000, "max locker for bdb env, default is 40000")
-	globalSettings = Settings{}
-	globalStats = Stats{}
+	cacheSize             = flag.Int("m", 64, "in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
+	pageSize              = flag.Int("A", 4096, "underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
+	home                  = flag.String("H", "../data", "env home of database, default is '$ROOT_PATH/data'")
+	logBufSize            = flag.Int("L", 32, "log buffer size in kbytes, default is 32KB")
+	checkPointValue       = flag.Int("C", 30, "do checkpoint every <num> seconds, default is 30")
+	memTrickleValue       = flag.Int("T", 30, "do memp_trickle every <num> seconds, default is 30 seconds")
+	dumpStatsValue        = flag.Int("S", 30, "do queue stats dump every <num> seconds, default is 30 seconds")
+	percentUsageCache     = flag.Int("e", 30, "percent of the pages in the cache that should be clean, default is 60%%")
+	pagesPerDb            = flag.Int("E", 16*1024, "how many pages in a single db file, default is 16*1024")
+	msgLen                = flag.Int("B", 1024, "specify the message body length in bytes, default is 1024")
+	deadLockCheckValue    = flag.Int("D", 1, "do deadlock detecting every <num> millisecond, default is 1s")
+	dbTxnNoSync           = flag.Bool("N", false, "enable DB_TXN_NOSYNC to gain big performance improved, default is false")
+	autoRemoveLog         = flag.Bool("R", false, "automatically remove log files that are no longer needed, default is false")
+	maxLocks              = flag.Int("l", 40000, "max locker for bdb env, default is 40000")
+	globalSettings        = Settings{}
+	globalStats           = Stats{}
 )
 
 type Settings struct {
-	Port	int
-	Verbose	bool
-	MaxDbpsPerQueue int64
+	Port             int
+	Verbose          bool
+	MaxDbpsPerQueue  int64
 	MaxItemsPerQueue int64
-	EnableSetCmd bool
-	SlowlogMinTime int
+	EnableSetCmd     bool
+	SlowlogMinTime   int
 }
 
 type Stats struct {
-	CurrConns uint
-	TotalConns uint
-	ConnStructs uint
-	GetCmds uint64
-	GetHits uint64
-	SetCmds uint64
-	SetHits uint64
-	Started time.Time
-	BytesRead uint64
+	CurrConns    uint
+	TotalConns   uint
+	ConnStructs  uint
+	GetCmds      uint64
+	GetHits      uint64
+	SetCmds      uint64
+	SetHits      uint64
+	Started      time.Time
+	BytesRead    uint64
 	BytesWritten uint64
 }
 
@@ -66,7 +66,7 @@ func initStats() {
 func initConfig() {
 	flag.Parse()
 	l4g.LoadConfiguration(*logConfigFile)
-	globalSettings.Port = *port;
+	globalSettings.Port = *port
 	globalSettings.SlowlogMinTime = *recordSlowLogminValue
 	envConfig := bdb.EnvConfig{}
 	envConfig.Home = *home
@@ -90,25 +90,25 @@ func initConfig() {
 func usage() {
 	fmt.Println("-p=<num>      TCP port number to listen on (default: 22201)")
 	fmt.Println("-h            print this help and exit")
-	fmt.Println("-n=<millisec> minimum value to record slowlog, default is 1s");
+	fmt.Println("-n=<millisec> minimum value to record slowlog, default is 1s")
 
-	fmt.Println("--------------------BerkeleyDB Options-------------------------------\n");
-	fmt.Println("-m=<num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB");
-	fmt.Println("-l=<num>      max locker for bdb env, default is 40000");
-	fmt.Println("-A=<num>      underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)");
-	fmt.Println("-H=<dir>      env home of database, default is '$ROOT_PATH/data'");
-	fmt.Println("-L=<num>      log buffer size in kbytes, default is 32KB");
-	fmt.Println("-C=<num>      do checkpoint every <num> seconds, default is 30 seconds");
-	fmt.Println("-T=<num>      do memp_trickle every <num> seconds, default is 30 seconds");
-	fmt.Println("-S=<num>      do queue stats dump every <num> seconds, default is 30 seconds");
-	fmt.Println("-e=<num>      percent of the pages in the cache that should be clean, default is 60%%");
+	fmt.Println("--------------------BerkeleyDB Options-------------------------------\n")
+	fmt.Println("-m=<num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
+	fmt.Println("-l=<num>      max locker for bdb env, default is 40000")
+	fmt.Println("-A=<num>      underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
+	fmt.Println("-H=<dir>      env home of database, default is '$ROOT_PATH/data'")
+	fmt.Println("-L=<num>      log buffer size in kbytes, default is 32KB")
+	fmt.Println("-C=<num>      do checkpoint every <num> seconds, default is 30 seconds")
+	fmt.Println("-T=<num>      do memp_trickle every <num> seconds, default is 30 seconds")
+	fmt.Println("-S=<num>      do queue stats dump every <num> seconds, default is 30 seconds")
+	fmt.Println("-e=<num>      percent of the pages in the cache that should be clean, default is 60%%")
 	/* queue only */
-	fmt.Println("-E=<num>      how many pages in a single db file, default is 16*1024, 0 for disable");
-	fmt.Println("-B=<num>      specify the message body length in bytes, default is 1024");
+	fmt.Println("-E=<num>      how many pages in a single db file, default is 16*1024, 0 for disable")
+	fmt.Println("-B=<num>      specify the message body length in bytes, default is 1024")
 
-	fmt.Println("-D=<num>      do deadlock detecting every <num> millisecond,default is 1");
-	fmt.Println("-N=<num>      enable DB_TXN_NOSYNC to gain big performance improved, default is 0");
-	fmt.Println("-R=<num>      automatically remove log files that are no longer needed, default is 0");
+	fmt.Println("-D=<num>      do deadlock detecting every <num> millisecond,default is 1")
+	fmt.Println("-N=<num>      enable DB_TXN_NOSYNC to gain big performance improved, default is 0")
+	fmt.Println("-R=<num>      automatically remove log files that are no longer needed, default is 0")
 }
 
 func main() {
@@ -124,7 +124,7 @@ func main() {
 	initConfig()
 	initStats()
 	config := service.TcpConfig{
-		Port: globalSettings.Port       ,
+		Port:         globalSettings.Port,
 		SendLimit:    65535,
 		ReceiveLimit: 65535,
 	}
@@ -167,7 +167,7 @@ func main() {
 			os.Setenv("RESTART", "true")
 
 			execSpec := &syscall.ProcAttr{
-				Env: os.Environ(),
+				Env:   os.Environ(),
 				Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd(), fd},
 			}
 
