@@ -22,7 +22,7 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 
 ```
 tar -zxvf db-6.1.26.tar.gz
-cd db-6.1.26;dist/configure --includedir=/usr/include --libdir=/usr/lib64/
+cd db-6.1.26;dist/configure --includedir=/usr/include --libdir=/usr/lib64/ (64位的机器)
 make && sudo make install
 ```
 
