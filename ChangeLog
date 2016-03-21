@@ -1,2 +1,5 @@
+2016-03-21 tab <tab@iyouya.com>
+* 解决了BerkeleyDB c开发环境头文件引用问题
+
 2016-03-08 tab <tab@iyouya.com>
 * version 0.1.0 is released.
