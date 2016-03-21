@@ -5,8 +5,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/iamyh/mgq/bdb"
-	"github.com/iamyh/mgq/service"
+	"github.com/YoungPioneers/mgq/bdb"
+	"github.com/YoungPioneers/mgq/service"
 	"time"
 	"runtime"
 	"os"

@@ -5,7 +5,7 @@ import (
 	l4g "code.google.com/p/log4go"
 	"errors"
 	"fmt"
-	"github.com/iamyh/mgq/bdb"
+	"github.com/YoungPioneers/mgq/bdb"
 	"net"
 	"runtime"
 	"strconv"
