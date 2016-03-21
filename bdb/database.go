@@ -91,29 +91,28 @@ package bdb
 import "C"
 
 import (
+	"encoding/binary"
 	"errors"
+	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"os"
-	"unsafe"
 	"strings"
 	"sync"
-	"fmt"
 	"time"
-	"encoding/binary"
-	l4g "code.google.com/p/log4go"
+	"unsafe"
 )
 
 var (
-	globalEnv Env
-	globalEnvConfig EnvConfig
- 	globalQListDb Db
-	globalQCursorListDb Db
-	globalQlistMap map[string]*Queue
- 	globalQlistMapRWLock = sync.RWMutex{}
-	globalCursorQlistMap map[string]*Cursor
+	globalEnv                  Env
+	globalEnvConfig            EnvConfig
+	globalQListDb              Db
+	globalQCursorListDb        Db
+	globalQlistMap             map[string]*Queue
+	globalQlistMapRWLock       = sync.RWMutex{}
+	globalCursorQlistMap       map[string]*Cursor
 	globalQCursorListMapRWLock = sync.RWMutex{}
-	globalDaemonQuitChan chan bool
+	globalDaemonQuitChan       chan bool
 )
-
 
 func InitBdbEnv(envConfig EnvConfig) {
 	globalEnvConfig = envConfig
@@ -129,8 +128,8 @@ func InitBdbEnv(envConfig EnvConfig) {
 	}
 
 	dbQCursorConfig := &DbConfig{
-		file: globalEnvConfig.Home + "/queue.cursor",
-		fileMode:0664,
+		file:     globalEnvConfig.Home + "/queue.cursor",
+		fileMode: 0664,
 	}
 
 	err = OpenQcursorDb(dbQCursorConfig)
@@ -140,8 +139,8 @@ func InitBdbEnv(envConfig EnvConfig) {
 	}
 
 	dbQListConfig := &DbConfig{
-		file:globalEnvConfig.Home + "/queue.list",
-		fileMode:0664,
+		file:     globalEnvConfig.Home + "/queue.list",
+		fileMode: 0664,
 	}
 
 	err = OpenQlistDb(dbQListConfig)
@@ -157,21 +156,21 @@ func InitBdbEnv(envConfig EnvConfig) {
 }
 
 type EnvConfig struct {
-	Home            string
-	CacheSize       int32
-	TxnNoSync       bool
-	TxMax           int32
-	TxLogBufferSize int32
-	AutoRemoveLog   bool
-	MaxLock         int32
-	PageSize		int32
-	DeadlockDetectVal	int
-	CheckpointVal 	int
-	MempoolTrickleVal	int
+	Home                  string
+	CacheSize             int32
+	TxnNoSync             bool
+	TxMax                 int32
+	TxLogBufferSize       int32
+	AutoRemoveLog         bool
+	MaxLock               int32
+	PageSize              int32
+	DeadlockDetectVal     int
+	CheckpointVal         int
+	MempoolTrickleVal     int
 	MempoolTricklePercent int
-	QstatsDumpVal	int
-	ReLen	int32
-	QExtentsize	int32
+	QstatsDumpVal         int
+	ReLen                 int32
+	QExtentsize           int32
 }
 
 type Env struct {
@@ -210,7 +209,7 @@ const (
 	QUEUE_NAME_DELIMITER = "#"
 	MAX_DBP_PER_QUEUE    = 128
 	MAX_QUEUE_NAME_SIZE  = 256
-	MAX_ITEM_PER_DBP = 1000000
+	MAX_ITEM_PER_DBP     = 1000000
 )
 
 func OpenDbEnv() (err error) {
@@ -262,7 +261,7 @@ func OpenDbEnv() (err error) {
 		}
 	}
 
-	var flags C.u_int32_t = C.DB_CREATE | C.DB_INIT_LOCK /*| C.DB_THREAD */| C.DB_INIT_MPOOL | C.DB_INIT_LOG | C.DB_INIT_TXN | C.DB_RECOVER
+	var flags C.u_int32_t = C.DB_CREATE | C.DB_INIT_LOCK /*| C.DB_THREAD */ | C.DB_INIT_MPOOL | C.DB_INIT_LOG | C.DB_INIT_TXN | C.DB_RECOVER
 	var mode C.int = 0
 	var home *C.char = C.CString(globalEnvConfig.Home)
 	defer C.free(unsafe.Pointer(home))
@@ -310,7 +309,7 @@ type Transaction struct {
 
 // Database cursor.
 type DbCursor struct {
-	db Db
+	db  Db
 	ptr *C.DBC
 }
 
@@ -336,7 +335,7 @@ func OpenQcursorDb(dbConfig *DbConfig) (err error) {
 		}
 	}()
 
-	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0);
+	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -359,10 +358,10 @@ func OpenQcursorDb(dbConfig *DbConfig) (err error) {
 	}
 
 	dbCursor := DbCursor{
-		db:globalQCursorListDb,
+		db: globalQCursorListDb,
 	}
 
-	ret = C.db_cursor(globalQCursorListDb.ptr, txn.ptr, &dbCursor.ptr, 0);
+	ret = C.db_cursor(globalQCursorListDb.ptr, txn.ptr, &dbCursor.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -378,7 +377,7 @@ func OpenQcursorDb(dbConfig *DbConfig) (err error) {
 	var dbKey, dbData C.DBT
 	for {
 		ret = C.db_cursor_get(dbCursor.ptr, &dbKey, &dbData, C.DB_NEXT)
-		if (ret != 0) {
+		if ret != 0 {
 			break
 		}
 		//
@@ -391,12 +390,12 @@ func OpenQcursorDb(dbConfig *DbConfig) (err error) {
 		max := binary.BigEndian.Uint32(value[8:])
 
 		cursor := &Cursor{
-			cur:uint32(cur),
-			min:uint32(min),
-			max:uint32(max),
+			cur: uint32(cur),
+			min: uint32(min),
+			max: uint32(max),
 		}
 		globalCursorQlistMap[string(key)] = cursor
-		l4g.Debug("open cursor name:%s,cur:%d,min:%d,max:%d",string(key), cur, min, max)
+		l4g.Debug("open cursor name:%s,cur:%d,min:%d,max:%d", string(key), cur, min, max)
 	}
 
 	if ret != C.int(DB_ERR_NOTFOUND) {
@@ -442,7 +441,7 @@ func OpenQlistDb(dbConfig *DbConfig) (err error) {
 		}
 	}()
 
-	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0);
+	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -465,10 +464,10 @@ func OpenQlistDb(dbConfig *DbConfig) (err error) {
 	}
 
 	dbCursor := DbCursor{
-		db:globalQListDb,
+		db: globalQListDb,
 	}
 
-	ret = C.db_cursor(globalQListDb.ptr, txn.ptr, &dbCursor.ptr, 0);
+	ret = C.db_cursor(globalQListDb.ptr, txn.ptr, &dbCursor.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -487,7 +486,7 @@ func OpenQlistDb(dbConfig *DbConfig) (err error) {
 
 	for {
 		ret = C.db_cursor_get(dbCursor.ptr, &dbKey, &dbData, C.DB_NEXT)
-		if (ret != 0) {
+		if ret != 0 {
 			break
 		}
 		//
@@ -495,10 +494,10 @@ func OpenQlistDb(dbConfig *DbConfig) (err error) {
 		stats = C.GoBytes(dbData.data, C.int(dbData.size))
 		var setHit = binary.BigEndian.Uint32(stats[0:4])
 		var getHit = binary.BigEndian.Uint32(stats[4:])
-		l4g.Debug("open queue name:%s,get:%d,set:%d",string(queueName), getHit, setHit)
+		l4g.Debug("open queue name:%s,get:%d,set:%d", string(queueName), getHit, setHit)
 		qstats := &QStats{
-			getHits:uint32(getHit),
-			setHits:uint32(setHit),
+			getHits: uint32(getHit),
+			setHits: uint32(setHit),
 		}
 		openExistedQueue(txn, string(queueName), qstats)
 	}
@@ -533,17 +532,16 @@ func (db Db) Close() (err error) {
 	return
 }
 
-
 type Queue struct {
-	maxDbpPerQueue int32
+	maxDbpPerQueue   int32
 	maxQueueNameSize int32
-	dbs map[uint32]Db
-	dbNames map[uint32]string
-	setHits uint32
-	getHits uint32
-	oldSetHits uint32
-	oldGetHits uint32
-	mutex sync.Mutex;
+	dbs              map[uint32]Db
+	dbNames          map[uint32]string
+	setHits          uint32
+	getHits          uint32
+	oldSetHits       uint32
+	oldGetHits       uint32
+	mutex            sync.Mutex
 }
 
 type QStats struct {
@@ -552,10 +550,10 @@ type QStats struct {
 }
 
 type Cursor struct {
-	cur uint32
-	max uint32
-	min uint32
-	db Db
+	cur   uint32
+	max   uint32
+	min   uint32
+	db    Db
 	mutex sync.Mutex
 }
 
@@ -574,13 +572,13 @@ func openExistedQueue(txn Transaction, key string, qstats *QStats) (err error) {
 		queueName = key
 	}
 
-	queue := &Queue {
-		setHits:qstats.setHits,
-		oldSetHits:qstats.setHits,
-		getHits:qstats.getHits,
-		oldGetHits:qstats.getHits,
-		dbs:make(map[uint32]Db),
-		dbNames:make(map[uint32]string),
+	queue := &Queue{
+		setHits:    qstats.setHits,
+		oldSetHits: qstats.setHits,
+		getHits:    qstats.getHits,
+		oldGetHits: qstats.getHits,
+		dbs:        make(map[uint32]Db),
+		dbNames:    make(map[uint32]string),
 	}
 
 	queue.mutex.Lock()
@@ -589,7 +587,7 @@ func openExistedQueue(txn Transaction, key string, qstats *QStats) (err error) {
 		queue.mutex.Unlock()
 	}()
 	maxDbId := (queue.setHits) / MAX_ITEM_PER_DBP
-	if queue.setHits != 0 && queue.setHits % MAX_ITEM_PER_DBP == 0 {
+	if queue.setHits != 0 && queue.setHits%MAX_ITEM_PER_DBP == 0 {
 		maxDbId = maxDbId - 1
 	}
 
@@ -598,7 +596,7 @@ func openExistedQueue(txn Transaction, key string, qstats *QStats) (err error) {
 	var tmpqn *C.char
 	defer func() {
 		C.free(unsafe.Pointer(tmpqn))
-	} ()
+	}()
 
 	var i uint32
 	for i = 0; i <= maxDbId; i++ {
@@ -621,7 +619,6 @@ func openExistedQueue(txn Transaction, key string, qstats *QStats) (err error) {
 		queue.dbs[i] = db
 		queue.dbNames[i] = tmp
 
-
 		if i == maxDbId {
 			var position uint32
 			position, err = db.getLastRecord(txn)
@@ -630,7 +627,7 @@ func openExistedQueue(txn Transaction, key string, qstats *QStats) (err error) {
 				return
 			}
 
-			var newHits = uint32(position) + MAX_ITEM_PER_DBP * maxDbId
+			var newHits = uint32(position) + MAX_ITEM_PER_DBP*maxDbId
 			l4g.Debug("db[key:%s][old_set_hits:%d][maxdbpid:%d][repaired_recno:%d][new_id:%d]", key, queue.setHits, maxDbId, position, newHits)
 			queue.setHits = newHits
 		}
@@ -647,10 +644,10 @@ func (db Db) getLastRecord(txn Transaction) (position uint32, err error) {
 	dbKey.size = 4
 
 	dbCursor := DbCursor{
-		db:db,
+		db: db,
 	}
 
-	ret = C.db_cursor(db.ptr, txn.ptr, &dbCursor.ptr, 0);
+	ret = C.db_cursor(db.ptr, txn.ptr, &dbCursor.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -670,7 +667,7 @@ func (db Db) getLastRecord(txn Transaction) (position uint32, err error) {
 	return
 }
 
-func CloseQlistDb() (err error){
+func CloseQlistDb() (err error) {
 	var ret C.int
 
 	err = DumpQstatsToDb()
@@ -695,20 +692,20 @@ func CloseQlistDb() (err error){
 
 	err = globalQListDb.Close()
 	if err != nil {
-		l4g.Error("globalQListDb close err:%s",err)
+		l4g.Error("globalQListDb close err:%s", err)
 		return
 	}
 
 	err = globalQCursorListDb.Close()
 	if err != nil {
-		l4g.Error("globalQCursorListDb close err:%s",err)
+		l4g.Error("globalQCursorListDb close err:%s", err)
 		return
 	}
 
 	return
 }
 
-func (queue *Queue) NewQueueAndInsert(key string) (err error){
+func (queue *Queue) NewQueueAndInsert(key string) (err error) {
 	var ret C.int
 	var queueName string
 
@@ -730,7 +727,7 @@ func (queue *Queue) NewQueueAndInsert(key string) (err error){
 	}()
 
 	var txn Transaction
-	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0);
+	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
 		return
@@ -742,7 +739,7 @@ func (queue *Queue) NewQueueAndInsert(key string) (err error){
 		}
 	}()
 
-	err = queue.NewDBInQueue(txn, queueName, 0);
+	err = queue.NewDBInQueue(txn, queueName, 0)
 	if err != nil {
 		return
 	}
@@ -750,10 +747,10 @@ func (queue *Queue) NewQueueAndInsert(key string) (err error){
 	var dbKey, dbData C.DBT
 	var keyByte = []byte(queueName)
 	var valueByte = make([]byte, 8)
-	dbKey.data = unsafe.Pointer(&keyByte[0]);
-	dbKey.size = C.u_int32_t(len(keyByte));
-	dbData.data = unsafe.Pointer(&valueByte[0]);
-	dbData.size = 8;
+	dbKey.data = unsafe.Pointer(&keyByte[0])
+	dbKey.size = C.u_int32_t(len(keyByte))
+	dbData.data = unsafe.Pointer(&valueByte[0])
+	dbData.size = 8
 
 	ret = C.db_put(globalQListDb.ptr, txn.ptr, &dbKey, &dbData, 0)
 	if ret != 0 {
@@ -808,20 +805,19 @@ func (queue *Queue) NewDBInQueue(txn Transaction, queueName string, dbId uint32)
 
 	if _, ok := queue.dbs[dbId]; ok {
 		l4g.Error("db id [%lld] has existed in queue [%s].", dbId, queueName)
-		err = errors.New(fmt.Sprintf("db id [%ld] has existed in queue [%s].", dbId, queueName))
+		err = errors.New(fmt.Sprintf("db id [%d] has existed in queue [%s].", dbId, queueName))
 		return
 		//C.db_close(queue.dbs[rid].ptr, 0)
 		//delete(queue.dbs, rid)
 	}
 
-	queue.dbNames[dbId] = fmt.Sprintf("%s_%d", queueName, dbId);
+	queue.dbNames[dbId] = fmt.Sprintf("%s_%d", queueName, dbId)
 	queue.dbs[dbId] = db
 
 	return
 }
 
-
-func DelCursor(key string) (err error){
+func DelCursor(key string) (err error) {
 
 	var ret C.int
 	var queueName string
@@ -845,14 +841,14 @@ func DelCursor(key string) (err error){
 		delete(globalCursorQlistMap, key)
 	}
 
-	globalQCursorListMapRWLock.Unlock();
+	globalQCursorListMapRWLock.Unlock()
 
 	globalQlistMapRWLock.Lock()
 	defer func() {
 		globalQlistMapRWLock.Unlock()
-	} ()
+	}()
 
-	var txn  = Transaction{}
+	var txn = Transaction{}
 	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
@@ -863,13 +859,13 @@ func DelCursor(key string) (err error){
 		if err != nil {
 			C.db_txn_abort(txn.ptr)
 		}
-	} ()
+	}()
 
 	if ok {
 		var dbKey C.DBT
 		var keyByte = []byte(key)
-		dbKey.data = unsafe.Pointer(&keyByte[0]);
-		dbKey.size = C.u_int32_t(len(keyByte));
+		dbKey.data = unsafe.Pointer(&keyByte[0])
+		dbKey.size = C.u_int32_t(len(keyByte))
 		ret = C.db_del(globalQCursorListDb.ptr, txn.ptr, &dbKey, 0)
 		if ret != 0 {
 			l4g.Error("db_del err:%s,key:%s", err, key)
@@ -894,7 +890,7 @@ func DelCursor(key string) (err error){
 	}
 
 	var queue *Queue
-	queue, ok = globalQlistMap[queueName];
+	queue, ok = globalQlistMap[queueName]
 	if !ok {
 		ret = C.db_txn_commit(txn.ptr, 0)
 		if ret != 0 {
@@ -923,8 +919,8 @@ func DelCursor(key string) (err error){
 
 	var dbKey C.DBT
 	var keyByte = []byte(queueName)
-	dbKey.data = unsafe.Pointer(&keyByte[0]);
-	dbKey.size = C.u_int32_t(len(keyByte));
+	dbKey.data = unsafe.Pointer(&keyByte[0])
+	dbKey.size = C.u_int32_t(len(keyByte))
 	ret = C.db_del(globalQListDb.ptr, txn.ptr, &dbKey, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
@@ -941,7 +937,7 @@ func DelCursor(key string) (err error){
 	return
 }
 
-func DumpQstatsToDb () (err error){
+func DumpQstatsToDb() (err error) {
 
 	l4g.Debug("start to dump stats to db")
 	var ret C.int
@@ -961,8 +957,8 @@ func DumpQstatsToDb () (err error){
 			q.oldGetHits = q.getHits
 			q.mutex.Unlock()
 			qStats := QStats{
-				setHits:q.oldSetHits,
-				getHits:q.oldGetHits,
+				setHits: q.oldSetHits,
+				getHits: q.oldGetHits,
 			}
 
 			qStatsMap[k] = qStats
@@ -970,7 +966,7 @@ func DumpQstatsToDb () (err error){
 	}
 
 	globalQlistMapRWLock.RUnlock()
-	var txn  = Transaction{}
+	var txn = Transaction{}
 	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
@@ -981,7 +977,7 @@ func DumpQstatsToDb () (err error){
 		if err != nil {
 			C.db_txn_abort(txn.ptr)
 		}
-	} ()
+	}()
 
 	var dbKey, dbData C.DBT
 	for k, v := range qStatsMap {
@@ -1012,12 +1008,12 @@ func DumpQstatsToDb () (err error){
 	return
 }
 
-func DumpCursorStatsToDb () (err error){
+func DumpCursorStatsToDb() (err error) {
 
 	l4g.Debug("start to dump cursor stats to db")
 	var ret C.int
 
-	var txn  = Transaction{}
+	var txn = Transaction{}
 	ret = C.db_env_txn_begin(globalEnv.ptr, &txn.ptr, 0)
 	if ret != 0 {
 		err = DbErrNo(ret)
@@ -1030,20 +1026,20 @@ func DumpCursorStatsToDb () (err error){
 			C.db_txn_abort(txn.ptr)
 		}
 		globalQCursorListMapRWLock.RUnlock()
-	} ()
+	}()
 
 	var dbKey, dbData C.DBT
 	for k, v := range globalCursorQlistMap {
 		var keyByte = []byte(k)
-		dbKey.data = unsafe.Pointer(&keyByte[0]);
-		dbKey.size = C.u_int32_t(len(keyByte));
+		dbKey.data = unsafe.Pointer(&keyByte[0])
+		dbKey.size = C.u_int32_t(len(keyByte))
 
 		var valueByte = make([]byte, 12)
 		binary.BigEndian.PutUint32(valueByte[0:4], v.cur)
 		binary.BigEndian.PutUint32(valueByte[4:8], v.min)
 		binary.BigEndian.PutUint32(valueByte[8:], v.max)
-		dbData.data = unsafe.Pointer(&valueByte[0]);
-		dbData.size = 12;
+		dbData.data = unsafe.Pointer(&valueByte[0])
+		dbData.size = 12
 		ret = C.db_put(globalQCursorListDb.ptr, txn.ptr, &dbKey, &dbData, 0)
 		if ret != 0 {
 			err = DbErrNo(ret)
@@ -1066,7 +1062,7 @@ func DumpCursorStatsToDb () (err error){
 func NewCursor(key string) (cursor *Cursor, err error) {
 
 	cursor = &Cursor{
-		mutex:sync.Mutex{},
+		mutex: sync.Mutex{},
 	}
 	globalQCursorListMapRWLock.Lock()
 	globalCursorQlistMap[key] = cursor
@@ -1103,7 +1099,7 @@ func NewCursor(key string) (cursor *Cursor, err error) {
 	return
 }
 
-func GetCursor(key string) (cursor *Cursor, err error){
+func GetCursor(key string) (cursor *Cursor, err error) {
 
 	l4g.Debug("start to GetCursor")
 	globalQCursorListMapRWLock.RLock()
@@ -1113,7 +1109,7 @@ func GetCursor(key string) (cursor *Cursor, err error){
 		globalQCursorListMapRWLock.RUnlock()
 		cursor, err = NewCursor(key)
 		if err != nil {
-			l4g.Error("NewCursor err:%s",err)
+			l4g.Error("NewCursor err:%s", err)
 			return
 		}
 	} else {
@@ -1135,11 +1131,11 @@ func PrintQueueStats() (res string, err error) {
 		setHit = q.setHits
 		getHit = q.getHits
 		q.mutex.Unlock()
-		res = res + fmt.Sprintf("STAT %s %ld/%ld\r\n", k, setHit, getHit)
+		res = res + fmt.Sprintf("STAT %s %d/%d\r\n", k, setHit, getHit)
 	}
 
 	globalQlistMapRWLock.RUnlock()
-	res = res + "END";
+	res = res + "END"
 	return
 }
 
@@ -1148,7 +1144,7 @@ func CheckPointTick() {
 	timer := time.Tick(duration)
 	for {
 		select {
-		case _ = <- timer:
+		case _ = <-timer:
 			l4g.Debug("start to CheckPointTick")
 			var ret C.int = C.db_lock_detect(globalEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
 			if ret != 0 {
@@ -1156,8 +1152,8 @@ func CheckPointTick() {
 				l4g.Error("CheckPointTick err:%s", err)
 			}
 			l4g.Debug("end to CheckPointTick")
-		case _ = <- globalDaemonQuitChan:
-			break;
+		case _ = <-globalDaemonQuitChan:
+			break
 		}
 	}
 }
@@ -1188,7 +1184,7 @@ func CheckDeadLockDetectTick() {
 	timer := time.Tick(duration)
 	for {
 		select {
-		case _ = <- timer:
+		case _ = <-timer:
 			l4g.Debug("start to CheckDeadLockDetectTick")
 			var ret C.int = C.db_lock_detect(globalEnv.ptr, 0, C.DB_LOCK_YOUNGEST)
 			if ret != 0 {
@@ -1196,8 +1192,8 @@ func CheckDeadLockDetectTick() {
 				l4g.Error("CheckDeadlockDetect err:%s", err)
 			}
 			l4g.Debug("end to CheckDeadLockDetectTick")
-		case _ = <- globalDaemonQuitChan:
-			break;
+		case _ = <-globalDaemonQuitChan:
+			break
 		}
 	}
 }
@@ -1220,7 +1216,7 @@ type DbItem struct {
 	Data []byte
 }
 
-func DbGet(key string, id uint32) (item DbItem, err error){
+func DbGet(key string, id uint32) (item DbItem, err error) {
 
 	var ret C.int
 	var queueName string
@@ -1239,7 +1235,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	globalQlistMapRWLock.RLock()
 	defer func() {
 		globalQlistMapRWLock.RUnlock()
-	} ()
+	}()
 
 	cursor, err := GetCursor(key)
 	if err != nil {
@@ -1259,9 +1255,9 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	var dbKey, dbData C.DBT
 	var clientId = id
 	cursor.mutex.Lock()
-	defer func () {
+	defer func() {
 		cursor.mutex.Unlock()
-	} ()
+	}()
 
 	if clientId <= 0 {
 		//l4g.Debug("clientId is less than o.change it to cursor.cur %d", cursor.cur)
@@ -1270,7 +1266,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 
 	if clientId > queue.setHits {
 		l4g.Error("client id [%d] is larger than queue [%s] setHits[%d],queue getHits [%d]", clientId, queueName, queue.setHits, queue.getHits)
-		item.Data = make([]byte, 0);
+		item.Data = make([]byte, 0)
 		return
 	}
 
@@ -1281,7 +1277,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 		return
 	}
 
-	position := uint32(clientId % MAX_ITEM_PER_DBP + 1)
+	position := uint32(clientId%MAX_ITEM_PER_DBP + 1)
 	//l4g.Debug("clientid=%d,position=%d", clientId, position)
 	dbKey.data = unsafe.Pointer(&position)
 	dbKey.size = C.u_int32_t(unsafe.Sizeof(position))
@@ -1295,7 +1291,7 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 		if err != nil {
 			C.db_txn_abort(txn.ptr)
 		}
-	} ()
+	}()
 
 	ret = C.db_get(db.ptr, txn.ptr, &dbKey, &dbData, 0)
 	if ret != 0 {
@@ -1314,9 +1310,9 @@ func DbGet(key string, id uint32) (item DbItem, err error){
 	item.Data = C.GoBytes(dbData.data, C.int(dbData.size))
 
 	/*
-	if item.Data != nil && len(item.Data) != 0 {
-		C.free(dbData.data)
-	}
+		if item.Data != nil && len(item.Data) != 0 {
+			C.free(dbData.data)
+		}
 	*/
 	cursor.cur++
 	queue.getHits++
@@ -1344,14 +1340,14 @@ func DbSet(key string, item DbItem) (err error) {
 	var queue *Queue
 	var ok bool
 	if queue, ok = globalQlistMap[queueName]; !ok {
-		queue = &Queue {
-			setHits:0,
-			oldSetHits:0,
-			getHits:0,
-			oldGetHits:0,
-			dbs:make(map[uint32]Db),
-			dbNames:make(map[uint32]string),
-			mutex:sync.Mutex{},
+		queue = &Queue{
+			setHits:    0,
+			oldSetHits: 0,
+			getHits:    0,
+			oldGetHits: 0,
+			dbs:        make(map[uint32]Db),
+			dbNames:    make(map[uint32]string),
+			mutex:      sync.Mutex{},
 		}
 
 		err = queue.NewQueueAndInsert(queueName)
@@ -1365,9 +1361,9 @@ func DbSet(key string, item DbItem) (err error) {
 	}
 
 	queue.mutex.Lock()
-	defer func () {
+	defer func() {
 		queue.mutex.Unlock()
-	} ()
+	}()
 
 	var db = Db{}
 	var txn = Transaction{}
@@ -1404,11 +1400,11 @@ func DbSet(key string, item DbItem) (err error) {
 		if err != nil {
 			C.db_txn_abort(txn.ptr)
 		}
-	} ()
+	}()
 
 	var dbKey, dbData C.DBT
 
-	var position = uint32(queue.setHits % MAX_ITEM_PER_DBP + 1)
+	var position = uint32(queue.setHits%MAX_ITEM_PER_DBP + 1)
 	dbKey.data = unsafe.Pointer(&position)
 	dbKey.size = C.u_int32_t(unsafe.Sizeof(position))
 	dbData.data = unsafe.Pointer(&item.Data[0])
@@ -1436,7 +1432,7 @@ func DbSet(key string, item DbItem) (err error) {
 
 }
 
-func GetAllCursorInfo() (res string){
+func GetAllCursorInfo() (res string) {
 	globalQCursorListMapRWLock.RLock()
 	defer func() {
 		globalQCursorListMapRWLock.RUnlock()

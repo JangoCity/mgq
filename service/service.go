@@ -1,8 +1,8 @@
 package service
 
 import (
-	l4g "code.google.com/p/log4go"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"net"
 	"os"
 	"strconv"
