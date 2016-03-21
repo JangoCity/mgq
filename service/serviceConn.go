@@ -1,12 +1,12 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"net"
 	"runtime"
 	"sync"
-	"errors"
-	l4g "code.google.com/p/log4go"
 )
 
 type Conn struct {
@@ -19,8 +19,7 @@ type Conn struct {
 	receiveChan chan []byte
 }
 
-type ConnCallBack struct{
-
+type ConnCallBack struct {
 }
 
 func (cb *ConnCallBack) ConnectCome(c *Conn) bool {

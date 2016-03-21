@@ -1,15 +1,15 @@
 package bdb
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
 
-func Test_A (t *testing.T) {
+func Test_A(t *testing.T) {
 
 	for i := 0; i <= 1000; i++ {
 		item := DbItem{
-			Data:[]byte{'g', 'o', 'l', 'a', 'n', 'g'},
+			Data: []byte{'g', 'o', 'l', 'a', 'n', 'g'},
 		}
 
 		err := DbSet("myqueue", item)
