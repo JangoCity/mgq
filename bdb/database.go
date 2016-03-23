@@ -1064,10 +1064,10 @@ func NewCursor(key string) (cursor *Cursor, err error) {
 	cursor = &Cursor{
 		mutex: sync.Mutex{},
 	}
+
 	globalQCursorListMapRWLock.Lock()
 	globalCursorQlistMap[key] = cursor
 	globalQCursorListMapRWLock.Unlock()
-
 	var queueName string
 	if strings.Contains(key, QUEUE_NAME_DELIMITER) {
 		strs := strings.Split(key, QUEUE_NAME_DELIMITER)
@@ -1081,7 +1081,6 @@ func NewCursor(key string) (cursor *Cursor, err error) {
 		queueName = key
 	}
 
-	globalQlistMapRWLock.RLock()
 	var queue *Queue
 	var ok bool
 	if queue, ok = globalQlistMap[queueName]; ok {
@@ -1095,28 +1094,20 @@ func NewCursor(key string) (cursor *Cursor, err error) {
 		cursor.cur = 0
 	}
 
-	globalQlistMapRWLock.RUnlock()
 	return
 }
 
 func GetCursor(key string) (cursor *Cursor, err error) {
 
-	l4g.Debug("start to GetCursor")
-	globalQCursorListMapRWLock.RLock()
-
 	var ok bool
 	if cursor, ok = globalCursorQlistMap[key]; !ok {
-		globalQCursorListMapRWLock.RUnlock()
 		cursor, err = NewCursor(key)
 		if err != nil {
 			l4g.Error("NewCursor err:%s", err)
 			return
 		}
-	} else {
-		globalQCursorListMapRWLock.RUnlock()
 	}
 
-	l4g.Debug("end to GetCursor")
 	return
 }
 
@@ -1255,6 +1246,7 @@ func DbGet(key string, id uint32) (item DbItem, err error) {
 	var dbKey, dbData C.DBT
 	var clientId = id
 	cursor.mutex.Lock()
+
 	defer func() {
 		cursor.mutex.Unlock()
 	}()
@@ -1427,7 +1419,6 @@ func DbSet(key string, item DbItem) (err error) {
 
 	queue.setHits++
 	//l4g.Debug("set suc.key %s, position=%d,queue setHitts=%d", key,position, queue.setHits)
-
 	return
 
 }

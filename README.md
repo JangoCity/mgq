@@ -93,9 +93,19 @@ delete queue
 DELETED
 ```
 
-
-
 client example in [examples](https://github.com/YoungPioneers/mgq/examples)
+
+# Benchmark
+简单做了一下压测，下面的结果依次是1，2，3，4个routine，单个set和get的相对平均耗时时间,[Benchmark code](https://github.com/YoungPioneers/mgq/benchmark/mgqPerformance_test.go)
+
+```
+Benchmark_MgqMultiSetAndGet-4 	    2000	    546617 ns/op (1829 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    583259 ns/op (1714 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    723603 ns/op (1381 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    754741 ns/op (1324 per/s)
+
+```
+
 
 # ToDo
 [todo](https://github.com/YoungPioneers/mgq/todo)
