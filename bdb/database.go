@@ -150,7 +150,7 @@ func InitBdbEnv(envConfig EnvConfig) {
 	}
 
 	go QstatsDumpTick()
-	go CheckMempoolTrickleTick()
+	//go CheckMempoolTrickleTick()
 	go CheckPointTick()
 	go CheckDeadLockDetectTick()
 }

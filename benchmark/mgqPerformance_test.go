@@ -12,7 +12,7 @@ import (
 const (
 	itemNum = 50 * 10000
 )
-/*
+
 func Test_MgqMessageMiss(t *testing.T) {
 	mc := memcache.New("127.0.0.1:22201")
 	mc.Timeout = 1 * time.Second
@@ -66,7 +66,7 @@ func Test_MgqMessageMiss(t *testing.T) {
 	fmt.Printf("mgq message set total:%d, cost total time:%+v ns, %d per/s ,fail set total:%d\n", setCounter, setEndTime - setStartTime, (setCounter * 1000 * 1000 * 1000) / (setEndTime - setStartTime), setFailCounter)
 	fmt.Printf("mgq message get total:%d, cost total time:%+v ns, %d per/s ,fail get total:%d\n", getCounter, getEndTime - getStartTime, (getCounter * 1000 * 1000 * 1000) / (getEndTime - getStartTime) , getFailCounter)
 }
-*/
+
 func Benchmark_MgqSingleSetAndGet(b *testing.B) {
 	mc := memcache.New("127.0.0.1:22201")
 	mc.Timeout = 1 * time.Second

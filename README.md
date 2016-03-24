@@ -1,6 +1,8 @@
 # Introduction
 
-Memcached Go Queue, 简称mgq, 是一个用[Go](https://golang.org)语言写的tcp server，基于memcached协议的消息队列。[memcacheq](https://github.com/stvchu/memcacheq.git)是最早应用于[weibo](http://weibo.com)的基础消息中间件，有着高性能，解耦的优点，使得其广泛应用于微博,借鉴其中的思想，在原来的基础上增加了若干特性
+Memcached Go Queue, 简称mgq, 是一个用[Go](https://golang.org)语言写的，基于memcached协议的消息队列。其父亲[mcq](https://github.com/stvchu/memcacheq.git)是最早应用于[weibo](http://weibo.com)的基础消息中间件，有着高性能，解耦的优点，使得其广泛应用于微博
+
+
 
 
 
@@ -15,25 +17,48 @@ mgq是一个基于NOSQL数据库[BerkeleyDB](http://www.oracle.com/technetwork/c
 * 支持getr操作，支持获取队列中某一个start cursor位置开始，到end的数据：举个例子，假设myqueue已经有20条数据，getr myqueue 1 10 ,就可以获取队列当中cursor为[1-10]的消息 「内测中」
 
 * getn支持timeout机制的阻塞api来获取队列中的最新消息，举个例子：getn queue 10,意味着10s内有数据则立马返回，否则会10s后立马返回数据不存在的错误，默认getn的timeout是0s，永不超时（需要注意的是如果客户端有getn的操作，则set的另一个客户端需要调用setn）
+
+
+# Benchmark
+针对消息的丢失率，做了一下单个set和get的测试，下面的是消息数为30w，50w，100w时候的结果
+
+message total:30w
+
+```
+mgq message set total:300000, cost total time:123518222205 ns, 2428 per/s ,fail set total:0
+mgq message get total:300000, cost total time:51103619703 ns, 5870 per/s ,fail get total:0
+```
+
+message total:50w
+
+```
+mgq message set total:500000, cost total time:210480212729 ns, 2375 per/s ,fail set total:0
+mgq message get total:500000, cost total time:87694742059 ns, 5701 per/s ,fail get total:0
+```
+
+message total:100w
+
+```
+mgq message set total:1000000, cost total time:422339921379 ns, 2367 per/s ,fail set total:0
+mgq message get total:1000000, cost total time:173768683759 ns, 5754 per/s ,fail get total:0
+```
+
+同时简单做了一下压测，下面的结果依次是1，2，3，4个routine，单个set和get的相对平均耗时时间,[Benchmark code](https://github.com/YoungPioneers/mgq/benchmark/mgqPerformance_test.go)
+
+```
+Benchmark_MgqMultiSetAndGet-4 	    2000	    546617 ns/op (1829 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    583259 ns/op (1714 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    723603 ns/op (1381 per/s)
+Benchmark_MgqMultiSetAndGet-4 	    2000	    754741 ns/op (1324 per/s)
+
+```
+
 # Installation
 
 
-* 首先要安装BerkeleyDB，以版本6.1.26为例，下载[db-6.1.26.tar.gz](http://www.oracle.com/technetwork/cn/database/database-technologies/berkeleydb/downloads/index.html),执行
-
-```
-tar -zxvf db-6.1.26.tar.gz
-cd db-6.1.26;dist/configure --includedir=/usr/include --libdir=/usr/lib64/ (64位的机器)
-make && sudo make install
-```
-
-默认安装到/usr/local/BerkeleyDB.6.1/,之后执行
-
-```
-git clone https://github.com/YoungPioneers/mgq
-cd mgq && make
-cd bin && ./mgq
-```
-* 默认端口为22201，可通过./mgq -h查看更多帮助
+* 首先要安装BerkeleyDB，以版本6.1.26为例，下载[db-6.1.26.tar.gz](http://www.oracle.com/technetwork/cn/database/database-technologies/berkeleydb/downloads/index.html),执行tar -zxvf db-6.1.26.tar.gz;cd db-6.1.26;dist/configure;make && make install
+* git clone https://github.com/YoungPioneers/mgq ;cd mgq;make
+* cd bin;./mgq 默认端口为22201，可通过./mgq -h查看更多帮助
 
 
 
@@ -106,27 +131,12 @@ DELETED
 
 client example in [examples](https://github.com/YoungPioneers/mgq/examples)
 
-# Benchmark
-简单做了一下压测，下面的结果依次是1，2，3，4个routine，单个set和get的相对平均耗时时间,[Benchmark code](https://github.com/YoungPioneers/mgq/benchmark/mgqPerformance_test.go)
-
-```
-Benchmark_MgqMultiSetAndGet-4 	    2000	    546617 ns/op (1829 per/s)
-Benchmark_MgqMultiSetAndGet-4 	    2000	    583259 ns/op (1714 per/s)
-Benchmark_MgqMultiSetAndGet-4 	    2000	    723603 ns/op (1381 per/s)
-Benchmark_MgqMultiSetAndGet-4 	    2000	    754741 ns/op (1324 per/s)
-
-```
-
 
 # ToDo
-* add beachmark for set and get
-* add Coveralls to mgq
-* add popular language client for commands which are getr,getc,getn
+[todo](https://github.com/YoungPioneers/mgq/todo)
 
 # ChangeLog
 [ChangeLog](https://github.com/YoungPioneers/mgq/ChangeLog)
 
-# Thanks
-[stvchu](https://github.com/stvchu)
 # Usage
 under the MIT License
