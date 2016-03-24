@@ -56,9 +56,22 @@ Benchmark_MgqMultiSetAndGet-4 	    2000	    754741 ns/op (1324 per/s)
 # Installation
 
 
-* 首先要安装BerkeleyDB，以版本6.1.26为例，下载[db-6.1.26.tar.gz](http://www.oracle.com/technetwork/cn/database/database-technologies/berkeleydb/downloads/index.html),执行tar -zxvf db-6.1.26.tar.gz;cd db-6.1.26;dist/configure;make && make install
-* git clone https://github.com/YoungPioneers/mgq ;cd mgq;make
-* cd bin;./mgq 默认端口为22201，可通过./mgq -h查看更多帮助
+* 首先要安装BerkeleyDB，以版本6.1.26为例，下载[db-6.1.26.tar.gz](http://www.oracle.com/technetwork/cn/database/database-technologies/berkeleydb/downloads/index.html),执行
+
+```
+tar -zxvf db-6.1.26.tar.gz
+cd db-6.1.26;dist/configure --includedir=/usr/include --libdir=/usr/lib64/ (64位的机器)
+make && sudo make install
+```
+
+默认安装到/usr/local/BerkeleyDB.6.1/,之后执行
+
+```
+git clone https://github.com/YoungPioneers/mgq
+cd mgq && make
+cd bin && ./mgq
+```
+* 默认端口为22201，可通过./mgq -h查看更多帮助
 
 
 
