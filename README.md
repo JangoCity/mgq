@@ -43,7 +43,7 @@ mgq message set total:1000000, cost total time:422339921379 ns, 2367 per/s ,fail
 mgq message get total:1000000, cost total time:173768683759 ns, 5754 per/s ,fail get total:0
 ```
 
-同时简单做了一下压测，下面的结果依次是1，2，3，4个routine，单个set和get的相对平均耗时时间,[Benchmark code](https://github.com/YoungPioneers/mgq/benchmark/mgqPerformance_test.go)
+同时简单做了一下压测，下面的结果依次是1，2，3，4个routine，单个set和get的相对平均耗时时间,[Benchmark code](https://github.com/YoungPioneers/mgq/blob/master/benchmark/mgqPerformance_test.go)
 
 ```
 Benchmark_MgqMultiSetAndGet-4 	    2000	    546617 ns/op (1829 per/s)
@@ -142,14 +142,14 @@ delete queue
 DELETED
 ```
 
-client example in [examples](https://github.com/YoungPioneers/mgq/examples)
+client example in [examples](https://github.com/YoungPioneers/mgq/blob/master/examples)
 
 
 # ToDo
-[todo](https://github.com/YoungPioneers/mgq/todo)
+[todo](https://github.com/YoungPioneers/mgq/blob/master/todo)
 
 # ChangeLog
-[ChangeLog](https://github.com/YoungPioneers/mgq/ChangeLog)
+[ChangeLog](https://github.com/YoungPioneers/mgq/blob/master/ChangeLog)
 
-# Usage
+# License
 under the MIT License
