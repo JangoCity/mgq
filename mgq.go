@@ -180,8 +180,9 @@ func main() {
 				}
 
 				l4g.Info("pid:%d restart,new pid:%d start", os.Getpid(), fork)
-				srv.WaitAndDone()
 			*/
+			srv.WaitAndDone()
+
 			os.Exit(0)
 		}
 	}
