@@ -7,18 +7,19 @@ import (
 	"fmt"
 	"github.com/YoungPioneers/mgq/bdb"
 	"github.com/YoungPioneers/mgq/service"
-	"time"
-	"runtime"
 	l4g "github.com/alecthomas/log4go"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
+	"time"
 )
 
 var (
 	logConfigFile         = flag.String("c", "../conf/log.xml", "l4g config file,default is $ROOT_PATH/conf/log.xml")
 	port                  = flag.Int("p", 22201, "TCP port number to listen on (default: 22201)")
 	recordSlowLogminValue = flag.Int("n", 1, "<millisec> minimum value to record slowlog, default is 1s")
+	action                = flag.String("s", "start", "start|stop|restart")
 	cacheSize             = flag.Int("m", 64, "in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
 	pageSize              = flag.Int("A", 4096, "underlying page size in bytes, default is 4096, (512B ~ 64KB, power-of-two)")
 	home                  = flag.String("H", "../data", "env home of database, default is '$ROOT_PATH/data'")
@@ -91,6 +92,7 @@ func usage() {
 	fmt.Println("-p=<num>      TCP port number to listen on (default: 22201)")
 	fmt.Println("-h            print this help and exit")
 	fmt.Println("-n=<millisec> minimum value to record slowlog, default is 1s")
+	fmt.Println("-s=<action>   start|stop|restart")
 
 	fmt.Println("--------------------BerkeleyDB Options-------------------------------\n")
 	fmt.Println("-m=<num>      in-memmory cache size of BerkeleyDB in megabytes, default is 64MB")
@@ -159,25 +161,27 @@ func main() {
 
 			//停止接受新连接
 			srv.StopAccept()
-			fd, err := srv.GetListenerFD()
-			if err != nil {
-				l4g.Error("get tcp service fd err:%s", err)
-			}
+			/*
+				fd, err := srv.GetListenerFD()
+				if err != nil {
+					l4g.Error("get tcp service fd err:%s", err)
+				}
 
-			os.Setenv("RESTART", "true")
+				os.Setenv("RESTART", "true")
 
-			execSpec := &syscall.ProcAttr{
-				Env:   os.Environ(),
-				Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd(), fd},
-			}
+				execSpec := &syscall.ProcAttr{
+					Env:   os.Environ(),
+					Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd(), fd},
+				}
 
-			fork, err := syscall.ForkExec(os.Args[0], os.Args, execSpec)
-			if err != nil {
-				l4g.Error("Fail to fork, err:%s", err)
-			}
+				fork, err := syscall.ForkExec(os.Args[0], os.Args, execSpec)
+				if err != nil {
+					l4g.Error("Fail to fork, err:%s", err)
+				}
 
-			l4g.Info("pid:%d restart,new pid:%d start", os.Getpid(), fork)
-			srv.WaitAndDone()
+				l4g.Info("pid:%d restart,new pid:%d start", os.Getpid(), fork)
+				srv.WaitAndDone()
+			*/
 			os.Exit(0)
 		}
 	}
